@@ -3,10 +3,37 @@ from PIL import Image
 import folder_paths
 import os
 import json
-
+import unicodedata
+import re
 # by Kaharos94
 # https://github.com/Kaharos94/ComfyUI-Saveaswebp
 # comfyUI node to save an image in webp format
+
+class Sanitise_for_save:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "text": ("STRING", {"forceInput": (True if "STRING" == 'STRING' else False)}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "sanitise_for_save"
+
+    CATEGORY = "Text/Sanitise"
+
+    def sanitise_for_save(self, text):
+        return (self.replace_substring(text), )
+
+    def replace_substring(self, text):
+        text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+        text = re.sub('[^\w\s-]', '', text).strip().lower()
+        text = re.sub('[-\s]+', '-', text)
+        return text
 
 class Save_as_webp:
     def __init__(self):
@@ -43,6 +70,7 @@ class Save_as_webp:
         def compute_vars(input):
             input = input.replace("%width%", str(images[0].shape[1]))
             input = input.replace("%height%", str(images[0].shape[0]))
+
             return input
 
         filename_prefix = compute_vars(filename_prefix)
@@ -55,7 +83,7 @@ class Save_as_webp:
         if os.path.commonpath((self.output_dir, os.path.abspath(full_output_folder))) != self.output_dir:
             print("Saving image outside the output folder is not allowed.")
             return {}
-
+        filename = filename[ 0 : 243 ]
         try:
             counter = max(filter(lambda a: a[1][:-1] == filename and a[1][-1] == "_", map(map_filename, os.listdir(full_output_folder))))[0] + 1
         except ValueError:
@@ -97,5 +125,6 @@ class Save_as_webp:
 
         return { "ui": { "images": results } }
 NODE_CLASS_MAPPINGS = {
-    "Save_as_webp": Save_as_webp
+    "Save_as_webp": Save_as_webp,
+    "Sanitise_for_save" : Sanitise_for_save
 }
